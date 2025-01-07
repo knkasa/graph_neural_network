@@ -1,3 +1,5 @@
+# https://dss.i.u-tokyo.ac.jp/blog/gnn%E3%81%A7%E3%81%A7%E3%81%8D%E3%82%8B%E3%81%93%E3%81%A8%EF%BC%9A%E3%82%B0%E3%83%A9%E3%83%95%E3%83%8B%E3%83%A5%E3%83%BC%E3%83%A9%E3%83%AB%E3%83%8D%E3%83%83%E3%83%88%E3%83%AF%E3%83%BC%E3%82%AF/
+
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
