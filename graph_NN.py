@@ -87,7 +87,7 @@ history = model.fit(
     verbose=1
     )
 
-predictions = model.predict(loader.load(),steps=loader.steps_per_epoch)
+predictions = model.predict(loader.load(),steps=loader.steps_per_epoch) # model.predict(loader.load(), steps=1) will also work. steps means the number of batchs to split the data during prediction.
 
 # Print predictions
 print("\nPredictions:")
