@@ -8,8 +8,9 @@ from spektral.layers import GCNConv
 from spektral.data import Dataset, Graph
 from spektral.data.loaders import SingleLoader
 from spektral.transforms import AdjToSpTensor
+import scipy.sparse as sp
+import pdb
 
-# Create a simple dataset for fraud detection
 class FraudDetectionDataset(Dataset):
     def read(self):
         # Node features (e.g., transaction amount, transaction type)
@@ -21,7 +22,7 @@ class FraudDetectionDataset(Dataset):
             [250, 0],   # Transaction 4
             [3000, 1],  # Transaction 5
         ], dtype=np.float32)
-
+        
         # Adjacency matrix (connections based on shared account numbers, etc.)
         a = np.array([
             [0, 1, 0, 0, 0, 0],  # Transaction 0
@@ -31,7 +32,10 @@ class FraudDetectionDataset(Dataset):
             [0, 0, 0, 1, 0, 0],  # Transaction 4
             [0, 0, 0, 1, 0, 0],  # Transaction 5
         ], dtype=np.float32)
-
+        
+        # Convert adjacency matrix to sparse format before creating the graph
+        a_sparse = sp.csr_matrix(a)
+        
         # Labels (fraudulent: 1, not fraudulent: 0)
         y = np.array([
             [1],  # Label for Transaction 0
@@ -41,11 +45,11 @@ class FraudDetectionDataset(Dataset):
             [0],  # Label for Transaction 4
             [1],  # Label for Transaction 5
         ], dtype=np.float32)
-
-        return [Graph(x=x, a=a, y=y)]
+        
+        return [Graph(x=x, a=a_sparse, y=y)]
 
 # Create the dataset
-dataset = FraudDetectionDataset(transforms=AdjToSpTensor())
+dataset = FraudDetectionDataset()
 loader = SingleLoader(dataset)
 
 # Define the GNN model
@@ -54,21 +58,38 @@ class GNNModel(Model):
         super().__init__()
         self.gcn1 = GCNConv(16, activation='relu')
         self.gcn2 = GCNConv(1, activation='sigmoid')
-
+        
     def call(self, inputs):
         x, a = inputs
         x = self.gcn1([x, a])
         x = self.gcn2([x, a])
         return x
 
-# Create the model
+# Create input layers
+X_in = Input(shape=(2,))  # 2 features per node
+A_in = Input(shape=(None,), sparse=True)
+
+# Build the model
+x = X_in
+a = A_in
 model = GNNModel()
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+output = model([x, a])
+model = Model(inputs=[X_in, A_in], outputs=output)
+
+# Compile the model
+model.compile(optimizer='adam', loss='binary_crossentropy',metrics=['accuracy'])
 
 # Train the model
-for batch in loader:
-    model.fit(batch[0], batch[1], epochs=200, batch_size=1, verbose=1)
+history = model.fit(
+    loader.load(),
+    steps_per_epoch=loader.steps_per_epoch,
+    epochs=20,
+    verbose=1
+    )
 
-# Predict using the model
-predictions = model.predict(loader.load())
-print(predictions)
+predictions = model.predict(loader.load(),steps=loader.steps_per_epoch)
+
+# Print predictions
+print("\nPredictions:")
+for i, pred in enumerate(predictions):
+    print(f"Transaction {i}: {'Fraudulent' if pred[0] > 0.5 else 'Not Fraudulent'} (Score: {pred[0]:.3f})")
